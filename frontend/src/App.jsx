@@ -2,15 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "styled-components";
 import { MantineProvider } from "@mantine/core";
 import { theme } from "./styles/theme";
-import AppLayout from "./components/Layout/AppLayout";
-import Projects from "./pages/Projects";
-import DocumentPage from "./pages/DocumentPage";
-import Settings from "./pages/Settings.jsx";
-import Login from "./pages/Login";
-import NewProject from "./pages/NewProject";
-import Breakdown from "./pages/Breakdown";
-import Documents from "./pages/Documents";
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import ChatPage from "./pages/ChatPage";
+import IntroPage from "./pages/IntroPage";
 
 function App() {
   return (
@@ -18,26 +11,9 @@ function App() {
       <MantineProvider withGlobalStyles withNormalizeCSS>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-
-            {/* Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/new-project" element={<NewProject />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/documents" element={<Documents />} />
-                <Route
-                  path="/document/breakdown/:fileId"
-                  element={<Breakdown />}
-                />
-                <Route
-                  path="/project/:projectId/*"
-                  element={<DocumentPage />}
-                />
-              </Route>
-            </Route>
+            <Route path="/" element={<IntroPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </MantineProvider>

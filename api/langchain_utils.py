@@ -76,8 +76,7 @@ def get_rag_chain(model="gemini-2.0-flash", use_hybrid_search=True):
             # Contextualization prompt
             model_logger.info("Creating contextualization prompt")
             contextualize_prompt = ChatPromptTemplate.from_messages([
-                ("system", """Given chat history and a question, reformulate it to be standalone. 
-                Consider both text and image contexts."""),
+                ("system", """Given chat history and a question, reformulate it to be standalone."""),
                 MessagesPlaceholder("chat_history"),
                 ("human", "{input}")
             ])
@@ -89,15 +88,15 @@ def get_rag_chain(model="gemini-2.0-flash", use_hybrid_search=True):
                 contextualize_prompt
             )
 
-            # QA prompt
+            # QA prompt - simplified for basic RAG
             model_logger.info("Creating QA prompt")
             qa_prompt = ChatPromptTemplate.from_messages([
-                ("system", """You are a technical expert analyzing documents. Use both text and image context.
-                Text chunks may contain page numbers. Image summaries start with 'IMAGE:'. 
-                Always cite sources using [page X] or [image X] notation."""),
+                ("system", """You are a helpful assistant that answers questions based on the provided context from documents.
+                Answer the user's questions based on the information provided in the context. 
+                If the information is not in the context, say so politely."""),
                 MessagesPlaceholder("chat_history"),
                 ("human", "{input}"),
-                ("human", "Answer based on this context:\n{context}")
+                ("human", "Context from documents:\n{context}")
             ])
 
             # Assemble full chain

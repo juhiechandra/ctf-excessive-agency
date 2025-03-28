@@ -1,19 +1,22 @@
 export const theme = {
-  colors: {
-    background: "#000000",
-    surface: "#1A1A1A",
-    surfaceHover: "#2A2A2A",
-    primary: "#6366F1",
-    primaryHover: "#4F46E5",
-    text: {
-      primary: "#FFFFFF",
-      secondary: "#A1A1AA",
-      tertiary: "#71717A",
+    colors: {
+        background: "#000000",
+        surface: "#0D1117",
+        surfaceHover: "#1A2233",
+        primary: "#00FF9C",
+        primaryHover: "#00CCCC",
+        text: {
+            primary: "#00FF9C",
+            secondary: "#00DDAA",
+            tertiary: "#00CCCC",
+            error: "#FF3333",
+        },
+        border: "#102030",
+        user: "#00FF9C",
+        bot: "#00CCCC",
     },
-    border: "#27272A",
-  },
-  fonts: {
-    body: "Inter, system-ui, -apple-system, sans-serif",
-    mono: "JetBrains Mono, monospace",
-  },
+    fonts: {
+        body: "'JetBrains Mono', monospace",
+        mono: "'JetBrains Mono', monospace",
+    },
 };

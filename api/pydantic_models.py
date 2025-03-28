@@ -8,7 +8,7 @@ from typing import Optional, Annotated
 class ModelName(str, Enum):
     # Gemini models
     GEMINI_2_0_FLASH = "gemini-2.0-flash"
-    GEMINI_2_0_PRO = "gemini-2.0-flash"
+    GEMINI_2_0_PRO = "gemini-2.0-pro"
 
     # No OpenAI models - removed
 
@@ -120,3 +120,41 @@ class DocumentBreakdownResponse(BaseModel):
 class DocumentBreakdownRequest(BaseModel):
     file_id: int
     model: str = "gemini-2.0-flash"  # Using a more capable model for document analysis
+
+
+# User and Authentication models
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: UserRole = UserRole.USER
+
+
+class UserModify(BaseModel):
+    user_id: int
+    new_username: str
+
+
+class UserDelete(BaseModel):
+    user_id: int
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    role: UserRole
+
+
+class LoginResponse(BaseModel):
+    user_id: int
+    username: str
+    role: UserRole

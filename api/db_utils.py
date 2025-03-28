@@ -2,6 +2,8 @@ import sqlite3
 from datetime import datetime
 from logger import db_logger, error_logger, PerformanceTimer
 import os
+import hashlib
+import secrets
 
 DB_NAME = "rag_app.db"
 UPLOAD_DIR = "./uploaded_files"
@@ -273,10 +275,240 @@ def get_document_path(file_id):
             return None
 
 
+def create_users_table():
+    """Create users table if it doesn't exist."""
+    with PerformanceTimer(db_logger, "create_users_table"):
+        try:
+            conn = get_db_connection()
+            conn.execute('''CREATE TABLE IF NOT EXISTS users
+                            (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                             username TEXT UNIQUE,
+                             password_hash TEXT,
+                             role TEXT,
+                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            conn.commit()
+            conn.close()
+            db_logger.info("Users table created or verified")
+
+            # Create default admin and user accounts if they don't exist
+            if not get_user_by_username("admin"):
+                create_user("admin", "admin", "admin")
+                db_logger.info("Created default admin user")
+
+            if not get_user_by_username("user"):
+                create_user("user", "user", "user")
+                db_logger.info("Created default regular user")
+
+        except Exception as e:
+            error_msg = f"Failed to create users table: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            raise
+
+
+def hash_password(password):
+    """Hash a password for storing."""
+    # In a real application, use a proper password hashing library like bcrypt
+    # This is a simplified version for the CTF
+    salt = secrets.token_hex(8)
+    pwdhash = hashlib.sha256(salt.encode() + password.encode()).hexdigest()
+    return f"{salt}${pwdhash}"
+
+
+def verify_password(stored_password, provided_password):
+    """Verify a stored password against provided password."""
+    salt, stored_hash = stored_password.split('$')
+    pwdhash = hashlib.sha256(
+        salt.encode() + provided_password.encode()).hexdigest()
+    return pwdhash == stored_hash
+
+
+def create_user(username, password, role):
+    """Create a new user in the database."""
+    with PerformanceTimer(db_logger, f"create_user:{username}"):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Check if username already exists
+            cursor.execute(
+                'SELECT id FROM users WHERE username = ?', (username,))
+            if cursor.fetchone():
+                conn.close()
+                return None, "Username already exists"
+
+            # Hash the password
+            password_hash = hash_password(password)
+
+            # Insert the new user
+            cursor.execute(
+                'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
+                (username, password_hash, role)
+            )
+            user_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            db_logger.info(f"Created new user: {username} with role {role}")
+            return user_id, None
+        except Exception as e:
+            error_msg = f"Failed to create user {username}: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            return None, str(e)
+
+
+def authenticate_user(username, password):
+    """Authenticate a user by username and password."""
+    with PerformanceTimer(db_logger, f"authenticate_user:{username}"):
+        try:
+            user = get_user_by_username(username)
+            if not user:
+                return None
+
+            if verify_password(user["password_hash"], password):
+                return user
+
+            return None
+        except Exception as e:
+            error_msg = f"Failed to authenticate user {username}: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            return None
+
+
+def get_user_by_username(username):
+    """Get a user by username."""
+    with PerformanceTimer(db_logger, f"get_user_by_username:{username}"):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT id, username, password_hash, role FROM users WHERE username = ?',
+                (username,)
+            )
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return dict(user)
+            return None
+        except Exception as e:
+            error_msg = f"Failed to get user {username}: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            return None
+
+
+def get_user_by_id(user_id):
+    """Get a user by ID."""
+    with PerformanceTimer(db_logger, f"get_user_by_id:{user_id}"):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT id, username, role FROM users WHERE id = ?',
+                (user_id,)
+            )
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return dict(user)
+            return None
+        except Exception as e:
+            error_msg = f"Failed to get user by ID {user_id}: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            return None
+
+
+def modify_username(user_id, new_username):
+    """Modify a user's username."""
+    with PerformanceTimer(db_logger, f"modify_username:{user_id}"):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Check if new username already exists
+            cursor.execute('SELECT id FROM users WHERE username = ? AND id != ?',
+                           (new_username, user_id))
+            if cursor.fetchone():
+                conn.close()
+                return False, "Username already exists"
+
+            # Update the username
+            cursor.execute(
+                'UPDATE users SET username = ? WHERE id = ?',
+                (new_username, user_id)
+            )
+            conn.commit()
+            conn.close()
+
+            if cursor.rowcount > 0:
+                db_logger.info(
+                    f"Modified username for user ID {user_id} to {new_username}")
+                return True, None
+            else:
+                return False, "User not found"
+        except Exception as e:
+            error_msg = f"Failed to modify username for user ID {user_id}: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            return False, str(e)
+
+
+def delete_user(user_id):
+    """Delete a user by ID."""
+    with PerformanceTimer(db_logger, f"delete_user:{user_id}"):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            conn.close()
+
+            if cursor.rowcount > 0:
+                db_logger.info(f"Deleted user with ID {user_id}")
+                return True, None
+            else:
+                return False, "User not found"
+        except Exception as e:
+            error_msg = f"Failed to delete user with ID {user_id}: {str(e)}"
+            db_logger.error(error_msg)
+            error_logger.error(error_msg, exc_info=True)
+            return False, str(e)
+
+
+def get_all_users():
+    """
+    Retrieve all users from the database.
+
+    Returns:
+        list: A list of dictionaries containing user information (id, username, role)
+    """
+    with PerformanceTimer(db_logger, "get_all_users"):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # For security, we don't return passwords
+            cursor.execute("SELECT id, username, role FROM users")
+            users = [{"id": row[0], "username": row[1], "role": row[2]}
+                     for row in cursor.fetchall()]
+
+            return users
+        except Exception as e:
+            error_logger.error(
+                f"Error retrieving all users: {str(e)}", exc_info=True)
+            return []
+
+
 # Initialize the database tables
 try:
     create_application_logs()
     create_document_store()
+    create_users_table()
     db_logger.info("Database tables initialized successfully")
 except Exception as e:
     error_msg = f"Failed to initialize database tables: {str(e)}"

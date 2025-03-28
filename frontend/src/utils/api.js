@@ -16,16 +16,162 @@ const handleResponse = async(response) => {
     return response.json();
 };
 
+// LLM Tool Calling function
+export const callLlmTool = async(userQuery, conversationHistory, userRole) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/llm-tool-call`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                user_query: userQuery,
+                conversation_history: conversationHistory,
+                user_role: userRole,
+            }),
+        });
+        return handleResponse(response);
+    } catch (error) {
+        console.error("LLM Tool Calling API Error:", error);
+        throw error;
+    }
+};
+
+// Auth functions
+export const login = async(username, password) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                username,
+                password,
+            }),
+        });
+        const userData = await handleResponse(response);
+        // Store user info in localStorage
+        localStorage.setItem("user", JSON.stringify(userData));
+        return userData;
+    } catch (error) {
+        console.error("Login API Error:", error);
+        throw error;
+    }
+};
+
+export const logout = async() => {
+    try {
+        // Just remove the user from localStorage
+        localStorage.removeItem("user");
+        return { success: true };
+    } catch (error) {
+        console.error("Logout Error:", error);
+        throw error;
+    }
+};
+
+// Admin user management functions
+export const createUser = async(username, password, role) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/create-user`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                username,
+                password,
+                role,
+            }),
+        });
+        return handleResponse(response);
+    } catch (error) {
+        console.error("Create User API Error:", error);
+        throw error;
+    }
+};
+
+export const deleteUser = async(userId) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/delete-user`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                user_id: userId,
+            }),
+        });
+        return handleResponse(response);
+    } catch (error) {
+        console.error("Delete User API Error:", error);
+        throw error;
+    }
+};
+
+export const modifyUser = async(userId, newUsername) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/modify-user`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                new_username: newUsername,
+            }),
+        });
+        return handleResponse(response);
+    } catch (error) {
+        console.error("Modify User API Error:", error);
+        throw error;
+    }
+};
+
+export const listUsers = async() => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/list-users`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        return handleResponse(response);
+    } catch (error) {
+        console.error("List Users API Error:", error);
+        throw error;
+    }
+};
+
+// Admin chat function API
+export const executeAdminFunction = async(command, params) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/chat-function`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                command,
+                params,
+            }),
+        });
+        return handleResponse(response);
+    } catch (error) {
+        console.error("Admin Function API Error:", error);
+        throw error;
+    }
+};
+
 // Chat API
-export const sendChatMessage = async(message, sessionId, model) => {
+export const sendChatMessage = async(
+    message,
+    sessionId,
+    model = "gemini-2.0-flash"
+) => {
     try {
         console.log("Sending chat message:", { message, sessionId, model });
-
-        // Ensure model is one of the supported models
-        const supportedModels = ["gemini-2.0-flash", "gemini-2.0-flash"];
-        const validModel = supportedModels.includes(model) ?
-            model :
-            "gemini-2.0-flash";
 
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: "POST",
@@ -33,20 +179,15 @@ export const sendChatMessage = async(message, sessionId, model) => {
                 "Content-Type": "application/json",
                 Accept: "application/json",
             },
-            mode: "cors",
             body: JSON.stringify({
                 question: message,
-                session_id: sessionId || null,
-                model: validModel,
+                session_id: sessionId || `session_${Date.now()}`,
+                model: model,
             }),
         });
 
-        console.log("Response status:", response.status);
-
         if (!response.ok) {
-            console.error("Response not OK:", response);
             const errorText = await response.text();
-            console.error("Error text:", errorText);
             try {
                 const errorData = JSON.parse(errorText);
                 throw new Error(errorData.detail || "Failed to send message");
@@ -57,7 +198,6 @@ export const sendChatMessage = async(message, sessionId, model) => {
         }
 
         const data = await response.json();
-        console.log("Response data:", data);
         return data;
     } catch (error) {
         console.error("Error sending message:", error);
@@ -65,7 +205,7 @@ export const sendChatMessage = async(message, sessionId, model) => {
     }
 };
 
-// Document APIs
+// Document upload API
 export const uploadDocument = async(formData) => {
     try {
         const response = await fetch(`${API_BASE_URL}/upload-doc`, {
